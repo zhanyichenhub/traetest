@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>霓虹决策转盘 · Trae Test</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{
+    --bg-1:#0f0c29; --bg-2:#302b63; --bg-3:#24243e;
+    --pink:#ff2e9a; --cyan:#00f0ff; --purple:#9d4edd; --yellow:#ffe066;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  body{
+    background:linear-gradient(135deg,var(--bg-1),var(--bg-2),var(--bg-3));
+    background-size:400% 400%;animation:bgFlow 15s ease infinite;
+    color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    cursor:none;
+  }
+  @keyframes bgFlow{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
+
+  h1{
+    font-size:clamp(28px,5vw,48px);font-weight:800;letter-spacing:2px;
+    background:linear-gradient(90deg,var(--pink),var(--cyan),var(--yellow));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 30px rgba(255,46,154,.4);margin-bottom:6px;
+  }
+  .sub{font-size:14px;color:rgba(255,255,255,.55);margin-bottom:28px;letter-spacing:1px}
+
+  .stage{position:relative;width:min(80vw,420px);height:min(80vw,420px)}
+  .pointer{
+    position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+    width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;
+    border-top:32px solid var(--yellow);
+    filter:drop-shadow(0 0 12px var(--yellow));z-index:3;
+  }
+  .wheel{
+    width:100%;height:100%;border-radius:50%;
+    border:6px solid rgba(255,255,255,.15);
+    box-shadow:0 0 60px rgba(157,78,221,.5),inset 0 0 40px rgba(0,0,0,.5);
+    transition:transform 4s cubic-bezier(.17,.67,.12,1);
+    background:#000;
+  }
+  .center{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:80px;height:80px;border-radius:50%;
+    background:radial-gradient(circle,var(--purple),#1a1a2e);
+    border:3px solid var(--cyan);box-shadow:0 0 20px var(--cyan);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:14px;color:var(--cyan);cursor:pointer;z-index:2;
+    transition:transform .15s;letter-spacing:1px;
+  }
+  .center:hover{transform:translate(-50%,-50%) scale(1.08)}
+  .center:active{transform:translate(-50%,-50%) scale(.95)}
+
+  .result{
+    margin-top:30px;font-size:20px;font-weight:700;min-height:32px;
+    color:var(--cyan);text-shadow:0 0 12px var(--cyan);
+    text-align:center;letter-spacing:1px;
+  }
+  .result.flash{animation:flash .6s ease}
+  @keyframes flash{0%,100%{transform:scale(1)}50%{transform:scale(1.2);color:var(--yellow);text-shadow:0 0 20px var(--yellow)}}
+
+  canvas#fx{position:fixed;inset:0;pointer-events:none;z-index:1}
+  .footer{position:fixed;bottom:14px;font-size:12px;color:rgba(255,255,255,.35);letter-spacing:1px;z-index:2}
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+
+<h1>霓虹决策转盘</h1>
+<div class="sub">转一下 · 让命运替你决定做点啥</div>
+
+<div class="stage">
+  <div class="pointer"></div>
+  <svg class="wheel" id="wheel" viewBox="-100 -100 200 200"></svg>
+  <div class="center" id="btn">GO</div>
+</div>
+
+<div class="result" id="result">点击中间按钮开始</div>
+
+<div class="footer">Trae Test · 单文件交互 demo</div>
+
+<script>
+const tasks=[
+  {label:"喝杯水",color:"#00f0ff"},
+  {label:"深呼吸3次",color:"#ff2e9a"},
+  {label:"伸个懒腰",color:"#9d4edd"},
+  {label:"笑一下:)",color:"#ffe066"},
+  {label:"听首歌",color:"#00f0ff"},
+  {label:"走两步",color:"#ff2e9a"},
+  {label:"写句话",color:"#9d4edd"},
+  {label:"闭眼10秒",color:"#ffe066"}
+];
+
+// 绘制扇区
+const wheel=document.getElementById('wheel');
+const R=100, step=360/tasks.length;
+tasks.forEach((t,i)=>{
+  const a0=i*step-90, a1=(i+1)*step-90;
+  const p=deg2path(a0,a1,R);
+  const slice=document.createElementNS('http://www.w3.org/2000/svg','path');
+  slice.setAttribute('d',p);
+  slice.setAttribute('fill',t.color);
+  slice.setAttribute('stroke','#0f0c29');
+  slice.setAttribute('stroke-width','1.5');
+  slice.setAttribute('opacity','.85');
+  wheel.appendChild(slice);
+  // 文字
+  const mid=(a0+a1)/2, tr=R*0.62;
+  const tx=Math.cos(mid*Math.PI/180)*tr, ty=Math.sin(mid*Math.PI/180)*tr;
+  const text=document.createElementNS('http://www.w3.org/2000/svg','text');
+  text.setAttribute('x',tx);text.setAttribute('y',ty);
+  text.setAttribute('fill','#0f0c29');text.setAttribute('font-size','8.5');
+  text.setAttribute('font-weight','800');text.setAttribute('text-anchor','middle');
+  text.setAttribute('alignment-baseline','middle');
+  text.setAttribute('transform',`rotate(${mid+90} ${tx} ${ty})`);
+  text.textContent=t.label;
+  wheel.appendChild(text);
+});
+function deg2path(a0,a1,r){
+  const p=(deg)=>[Math.cos(deg*Math.PI/180)*r,Math.sin(deg*Math.PI/180)*r];
+  const [x0,y0]=p(a0),[x1,y1]=p(a1);
+  const large=(a1-a0)%360>180?1:0;
+  return `M0,0 L${x0},${y0} A${r},${r} 0 ${large},1 ${x1},${y1} Z`;
+}
+
+// 旋转逻辑
+const btn=document.getElementById('btn');
+const result=document.getElementById('result');
+let spinning=false, currentRot=0;
+btn.addEventListener('click',()=>{
+  if(spinning)return;spinning=true;
+  const pick=Math.floor(Math.random()*tasks.length);
+  // 让指针停在 pick 扇区中点：扇区中点角度=pick*step（0 起），需让该点对到顶部(=指针位置)
+  // wheel 旋转角度让 pick 中点向上：当前指针在顶部，转 (360 - (pick*step)) 加上几圈
+  const target=currentRot+360*5+(360-(pick*step));
+  currentRot=target;
+  wheel.style.transform=`rotate(${target}deg)`;
+  result.textContent="…旋转中…";
+  setTimeout(()=>{
+    result.textContent=`✦ ${tasks[pick].label} ✦`;
+    result.classList.remove('flash');void result.offsetWidth;result.classList.add('flash');
+    spinning=false;
+  },4000);
+});
+
+// 粒子拖尾
+const fx=document.getElementById('fx');
+const ctx=fx.getContext('2d');
+let W,H,mouse={x:0,y:0};
+function resize(){W=fx.width=innerWidth;H=fx.height=innerHeight;}
+resize();addEventListener('resize',resize);
+const colors=['#ff2e9a','#00f0ff','#9d4edd','#ffe066'];
+let particles=[];
+addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;
+  for(let i=0;i<2;i++){
+    particles.push({
+      x:mouse.x,y:mouse.y,
+      vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2-0.5,
+      life:1,r:Math.random()*3+1,
+      c:colors[Math.floor(Math.random()*colors.length)]
+    });
+  }
+});
+function loop(){
+  ctx.fillStyle='rgba(15,12,41,0.18)';
+  ctx.fillRect(0,0,W,H);
+  // 自定义光标
+  ctx.beginPath();ctx.arc(mouse.x,mouse.y,6,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,.8)';ctx.shadowBlur=15;ctx.shadowColor='#00f0ff';ctx.fill();
+  particles.forEach(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.life-=0.018;p.vy+=0.03;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=p.c;ctx.globalAlpha=p.life;
+    ctx.shadowBlur=10;ctx.shadowColor=p.c;ctx.fill();
+  });
+  ctx.globalAlpha=1;ctx.shadowBlur=0;
+  particles=particles.filter(p=>p.life>0);
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
